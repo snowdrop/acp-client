@@ -30,7 +30,7 @@ Compile the project and build the uber-jar:
 mvn clean install
 ```
 
-The uber-jar is produced at `client/target/acp-client-0.1.0-SNAPSHOT-runner.jar`.
+The uber-jar is produced at `client/target/acp-java-client-0.1.0-SNAPSHOT-runner.jar`.
 
 ## Usage
 
@@ -38,13 +38,13 @@ The uber-jar is produced at `client/target/acp-client-0.1.0-SNAPSHOT-runner.jar`
 
 ```shell
 # Default prompt: "Say Hello" with OpenCode agent
-java -jar client/target/acp-client-0.1.0-SNAPSHOT-runner.jar
+java -jar client/target/acp-java-client-0.1.0-SNAPSHOT-runner.jar
 
 # Custom prompt
-java -jar client/target/acp-client-0.1.0-SNAPSHOT-runner.jar --prompt "What is 6+6?"
+java -jar client/target/acp-java-client-0.1.0-SNAPSHOT-runner.jar --prompt "What is 6+6?"
 
 # With a specific agent, provider, and model
-java -jar client/target/acp-client-0.1.0-SNAPSHOT-runner.jar \
+java -jar client/target/acp-java-client-0.1.0-SNAPSHOT-runner.jar \
   --agent claude \
   --provider vertex-ai \
   --model claude-opus-4-6 \
@@ -187,7 +187,7 @@ When an agent needs to perform a sensitive operation (e.g. writing a file, runni
 
 Example:
 ```shell
-java -jar client/target/acp-client-0.1.0-SNAPSHOT-runner.jar \
+java -jar client/target/acp-java-client-0.1.0-SNAPSHOT-runner.jar \
   --permission-mode allow_once \
   --prompt "Create a Java HelloWorld class"
 ```
@@ -246,12 +246,12 @@ Log levels are configured in `client/src/main/resources/application.properties`.
 ```shell
 # Enable debug logging
 java -Dquarkus.log.category.\"io.quarkiverse\".level=DEBUG \
-  -jar client/target/acp-client-0.1.0-SNAPSHOT-runner.jar \
+  -jar client/target/acp-java-client-0.1.0-SNAPSHOT-runner.jar \
   --prompt "Say Hello"
 
 # Enable trace logging (raw JSON-RPC messages)
 java -Dquarkus.log.category.\"io.quarkiverse\".level=TRACE \
-  -jar client/target/acp-client-0.1.0-SNAPSHOT-runner.jar \
+  -jar client/target/acp-java-client-0.1.0-SNAPSHOT-runner.jar \
   --prompt "Say Hello"
 ```
 
