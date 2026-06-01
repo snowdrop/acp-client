@@ -4,6 +4,7 @@ import org.jboss.logging.Logger;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 
 public class GitUtil {
@@ -79,9 +80,14 @@ public class GitUtil {
 
         String repoUrl = parsed != null ? parsed.repoUrl : url;
         String repoName = extractRepoName(repoUrl);
-        Path targetDir = SKILLS_DIR.resolve(repoName);
+        boolean hasSubPath = parsed != null && parsed.subPath != null;
 
-        Files.createDirectories(SKILLS_DIR);
+        // When the URL points to a subdirectory, clone into a hidden .repos/
+        // directory so that SKILLS_DIR stays flat with one entry per skill.
+        Path cloneParent = hasSubPath ? SKILLS_DIR.resolve(".repos") : SKILLS_DIR;
+        Path targetDir = cloneParent.resolve(repoName);
+
+        Files.createDirectories(cloneParent);
 
         if (Files.isDirectory(targetDir.resolve(".git"))) {
             logger.infof("Skill repo already cloned at %s — pulling latest changes", targetDir);
@@ -92,18 +98,38 @@ public class GitUtil {
         } else {
             logger.infof("Cloning skill repo %s into %s", repoUrl, targetDir);
             if (parsed != null && parsed.branch != null) {
-                git(SKILLS_DIR, "git", "clone", "--branch", parsed.branch, repoUrl, repoName);
+                git(cloneParent, "git", "clone", "--branch", parsed.branch, repoUrl, repoName);
             } else {
-                git(SKILLS_DIR, "git", "clone", repoUrl, repoName);
+                git(cloneParent, "git", "clone", repoUrl, repoName);
             }
         }
 
-        if (parsed != null && parsed.subPath != null) {
+        if (hasSubPath) {
             Path subDir = targetDir.resolve(parsed.subPath);
             if (!Files.isDirectory(subDir)) {
                 throw new IOException("Subdirectory not found in repository: " + parsed.subPath);
             }
-            return subDir;
+            // Expose the skill under a flat name in SKILLS_DIR:
+            //   ~/.agents/skills/<skill-name> -> .repos/<repo>/<sub/path>
+            String skillName = Path.of(parsed.subPath).getFileName().toString();
+            Path skillLink = SKILLS_DIR.resolve(skillName);
+
+            if (Files.isSymbolicLink(skillLink)) {
+                // Update symlink if target changed
+                Path existingTarget = Files.readSymbolicLink(skillLink);
+                if (!existingTarget.equals(subDir.toAbsolutePath())) {
+                    Files.delete(skillLink);
+                    Files.createSymbolicLink(skillLink, subDir.toAbsolutePath());
+                }
+            } else if (!Files.exists(skillLink, LinkOption.NOFOLLOW_LINKS)) {
+                Files.createSymbolicLink(skillLink, subDir.toAbsolutePath());
+                logger.infof("Created skill symlink: %s -> %s", skillLink, subDir);
+            } else {
+                // A real file/directory already exists with this name — use the actual path
+                logger.warnf("Cannot create symlink %s (path already exists) — using full path", skillLink);
+                return subDir;
+            }
+            return skillLink;
         }
 
         return targetDir;
