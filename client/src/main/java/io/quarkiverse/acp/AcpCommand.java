@@ -7,11 +7,13 @@ import io.quarkiverse.agentclientprotocol.sdk.client.AcpSyncClient;
 import io.quarkiverse.agentclientprotocol.sdk.client.transport.AgentParameters;
 import io.quarkiverse.agentclientprotocol.sdk.client.transport.StdioAcpClientTransport;
 import io.quarkiverse.agentclientprotocol.sdk.spec.schema.v1.*;
-import io.quarkus.picocli.runtime.annotations.TopCommand;
 import org.jboss.logging.Logger;
-import picocli.CommandLine;
-import picocli.AutoComplete.GenerateCompletion;
-import picocli.codegen.docgen.manpage.ManPageGenerator;
+
+import org.aesh.command.Command;
+import org.aesh.command.CommandResult;
+import org.aesh.command.GroupCommandDefinition;
+import org.aesh.command.invocation.CommandInvocation;
+import org.aesh.command.option.Option;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,7 +27,7 @@ import java.util.Set;
 import java.util.logging.Level;
 
 /**
- * Picocli CLI command for any ACP-compatible agent (OpenCode, Claude, Pi, Gemini, etc.).
+ * Aesh CLI command for any ACP-compatible agent (OpenCode, Claude, Pi, Gemini, etc.).
  *
  * <p>Connects to an ACP agent over stdio, initializes a session,
  * sends a prompt, and streams session updates (thoughts, messages, tool calls, plans)
@@ -43,26 +45,24 @@ import java.util.logging.Level;
  * acp --agent-binary my-agent --agent-args "serve" --prompt "Say hello"
  * }</pre>
  */
-@TopCommand
-@CommandLine.Command(
+@GroupCommandDefinition(
         name = "acp",
-        mixinStandardHelpOptions = true,
-        version = "0.1.0-SNAPSHOT",
-        description = "CLI for any ACP-compatible agent (OpenCode, Claude, Pi, Gemini, etc.)",
-        subcommands = {ManPageGenerator.class, GenerateCompletion.class, RegistryCommand.class}
+        description = "acp tool for any acp compatible agent (OpenCode, Claude, Pi, Gemini, etc.)",
+        generateHelp = true,
+        groupCommands = {RegistryCommand.class}
 )
-public class AcpClientCommand implements Runnable {
+public class AcpCommand implements Command<CommandInvocation> {
 
-    private static final Logger logger = Logger.getLogger(AcpClientCommand.class);
+    private static final Logger logger = Logger.getLogger(AcpCommand.class);
 
-    // ── Agent resolution ────────────────────────────────────────────────────
+    // -- Agent resolution ----
     // Agents are resolved dynamically from the ACP registry.
     // Use 'acp install <agent-id>' to install an agent first.
     // Agent IDs match the ACP registry (e.g. opencode, claude-acp, pi-acp, gemini).
 
     private final AcpRegistryManager registryManager = new AcpRegistryManager();
 
-    // ── Provider env-var requirements per agent + provider ──────────────────
+    // -- Provider env-var requirements per agent + provider ----
     // Key format: "agent-id:provider". Checked before launching the agent.
 
     private static final Map<String, List<String>> PROVIDER_ENV_VARS = Map.ofEntries(
@@ -73,71 +73,72 @@ public class AcpClientCommand implements Runnable {
             Map.entry("gemini:vertex-ai",   List.of("GOOGLE_CLOUD_PROJECT"))
     );
 
-    // ── Instance state ──────────────────────────────────────────────────────
+    // -- Instance state ----
 
     private final StringBuilder thoughtBuffer = new StringBuilder();
     private volatile boolean messageOutputPending = false;
 
-    // ── CLI options ─────────────────────────────────────────────────────────
+    // -- CLI options ----
 
-    @CommandLine.Option(names = {"-a", "--agent"},
+    @Option(shortName = 'a', name = "agent",
             description = "ACP agent registry ID: opencode, claude-acp, pi-acp, gemini, ... (use 'acp reg list --registry' to see all) [env: ACP_AGENT]")
     String agent;
 
-    @CommandLine.Option(names = {"--agent-binary"},
+    @Option(name = "agent-binary",
             description = "Override agent binary path (for custom agents) [env: ACP_AGENT_BINARY]")
     String acpAgentBinary;
 
-    @CommandLine.Option(names = {"--agent-args"},
+    @Option(name = "agent-args",
             description = "Override agent arguments (for custom agents) [env: ACP_AGENT_ARGS]")
     String acpAgentArgs;
 
-    @CommandLine.Option(names = {"-p", "--prompt"},
+    @Option(shortName = 'p', name = "prompt",
             description = "The prompt text to send to the agent [env: ACP_PROMPT]")
     String prompt;
 
-    @CommandLine.Option(names = {"-m", "--model"},
+    @Option(shortName = 'm', name = "model",
             description = "The model to use, e.g. claude-opus-4-6 (resolved per agent/provider) [env: ACP_MODEL]")
     String model;
 
-    @CommandLine.Option(names = {"--provider"},
+    @Option(name = "provider",
             description = "Provider: zen, vertex-ai [env: ACP_PROVIDER]")
     String provider;
 
-    @CommandLine.Option(names = {"--request-timeout"},
+    @Option(name = "request-timeout",
             description = "Timeout in seconds for requests (initialize, create session, etc.) [env: ACP_REQUEST_TIMEOUT]")
     Integer requestTimeout;
 
-    @CommandLine.Option(names = {"--prompt-timeout"},
+    @Option(name = "prompt-timeout",
             description = "Timeout in seconds for prompt requests; 0 means no timeout [env: ACP_PROMPT_TIMEOUT]")
     Integer promptTimeout;
 
-    @CommandLine.Option(names = {"--permission-mode"},
+    @Option(name = "permission-mode",
             description = "How to respond to agent permission requests: allow_always, allow_once, reject_once, reject_always [env: ACP_PERMISSION_MODE]")
     String permissionMode;
 
-    @CommandLine.Option(names = {"-b", "--backup"},
+    @Option(shortName = 'b', name = "backup",
             description = "Backup workspace to target/workdirs before running: yes, no (default: yes). Only applies to Maven/Gradle projects [env: ACP_BACKUP]")
     String backup;
 
-    @CommandLine.Option(names = {"--backup-project-name"},
+    @Option(name = "backup-project-name",
             description = "Name of the project used in the backup directory: target/workdirs/<name>_<timestamp> (default: current directory name) [env: ACP_BACKUP_PROJECT_NAME]")
     String backupProjectName;
 
-    @CommandLine.Option(names = {"--wks", "--workspace-path"},
+    @Option(aliases = "wks",
+            name = "workspace-path",
             description = "Absolute path to the project/workspace directory used as CWD for the session. If not set, defaults to the directory where the command is executed [env: WORKSPACE_PATH]")
     String workspacePath;
 
-    @CommandLine.Option(names = {"-s", "--skill-path"},
+    @Option(shortName = 's', name = "skill-path",
             description = "Absolute path to a skills folder to add as additional directory [env: SKILL_PATH]")
     String skillPath;
 
-    @CommandLine.Option(names = {"-l", "--log-level"},
+    @Option(shortName = 'l', name = "log-level",
             description = "Log level: INFO, DEBUG, TRACE, WARNING, SEVERE [env: ACP_LOG_LEVEL]")
     String logLevel;
 
     @Override
-    public void run() {
+    public CommandResult execute(CommandInvocation invocation) {
         // Configure log level if provided
         logLevel = resolveOption(logLevel, "ACP_LOG_LEVEL", null);
         if (logLevel != null && !logLevel.isEmpty()) {
@@ -160,7 +161,7 @@ public class AcpClientCommand implements Runnable {
         prompt = resolveOption(prompt, "ACP_PROMPT", "Say Hello");
         permissionMode = resolveOption(permissionMode, "ACP_PERMISSION_MODE", "allow_always");
 
-        // ── Resolve agent binary and args ────────────────────────────────
+        // -- Resolve agent binary and args ----
         agent = resolveOption(agent, "ACP_AGENT", "opencode");
         acpAgentBinary = resolveOption(acpAgentBinary, "ACP_AGENT_BINARY", null);
         acpAgentArgs = resolveOption(acpAgentArgs, "ACP_AGENT_ARGS", null);
@@ -168,45 +169,41 @@ public class AcpClientCommand implements Runnable {
         String binary;
         String args;
         if (acpAgentBinary != null) {
-            // Explicit binary override — use it directly
             binary = acpAgentBinary;
             args = acpAgentArgs;
         } else {
-            // Resolve from installed agents ($HOME/.acp)
             var agentCommand = registryManager.resolveAgentCommand(agent);
             if (agentCommand != null) {
                 binary = agentCommand.binary();
                 args = acpAgentArgs != null ? acpAgentArgs
                         : String.join(",", agentCommand.args());
             } else {
-                // Agent not installed — provide actionable guidance
                 AcpRegistryManager.Registry registry = registryManager.getCachedRegistry();
                 if (registry != null && registryManager.findAgent(registry, agent) != null) {
-                    System.err.println("ERROR: Agent '" + agent
+                    invocation.println("ERROR: Agent '" + agent
                             + "' exists in the ACP registry but is not installed.");
-                    System.err.println("Run:  acp reg install " + agent);
+                    invocation.println("Run:  acp reg install " + agent);
                 } else {
-                    System.err.println("ERROR: Unknown agent '" + agent + "'.");
-                    System.err.println("Run:  acp reg list --registry   to see available agents.");
-                    System.err.println("      acp reg install <id>      to install one.");
+                    invocation.println("ERROR: Unknown agent '" + agent + "'.");
+                    invocation.println("Run:  acp reg list --registry   to see available agents.");
+                    invocation.println("      acp reg install <id>      to install one.");
                 }
-                System.err.println("Alternatively, use --agent-binary to specify the agent binary directly.");
-                System.exit(1);
-                return;
+                invocation.println("Alternatively, use --agent-binary to specify the agent binary directly.");
+                return CommandResult.FAILURE;
             }
         }
 
-        // ── Resolve and normalize provider ───────────────────────────────
+        // -- Resolve and normalize provider ----
         provider = resolveOption(provider, "ACP_PROVIDER", "zen");
         provider = normalizeProvider(provider);
 
-        // ── Resolve model name ───────────────────────────────────────────
+        // -- Resolve model name ----
         model = resolveOption(model, "ACP_MODEL", null);
         if (model != null) {
             model = resolveModelName(agent, provider, model);
         }
 
-        // ── Timeouts ─────────────────────────────────────────────────────
+        // -- Timeouts ----
         String reqTimeoutStr = resolveOption(
                 requestTimeout != null ? requestTimeout.toString() : null,
                 "ACP_REQUEST_TIMEOUT", "30");
@@ -266,7 +263,7 @@ public class AcpClientCommand implements Runnable {
                 .permissionRequestHandler(request -> handlePermissionRequest(request, permMode))
                 .build()) {
 
-            // 4. Initialize — handshake with the agent
+            // 4. Initialize -- handshake with the agent
             var initResponse = client.initialize();
             var agentInfo = initResponse.agentInfo();
             String title = agentInfo.title();
@@ -304,7 +301,7 @@ public class AcpClientCommand implements Runnable {
                     }
                 } catch (RuntimeException e) {
                     if (e.getMessage() != null && e.getMessage().contains("-32601")) {
-                        logger.warnf("Agent does not support session/set_config_option — skipping model configuration. "
+                        logger.warnf("Agent does not support session/set_config_option -- skipping model configuration. "
                                 + "The agent will use its default model.");
                     } else {
                         throw e;
@@ -319,7 +316,7 @@ public class AcpClientCommand implements Runnable {
                 effectivePrompt = prompt + "\n\nPlease read the skill file at: " + skillPath + " and follow its instructions.";
             }
             logger.infof("Sending prompt: %s", effectivePrompt);
-            System.out.println("Here is the AI response:");
+            invocation.println("Here is the AI response:");
             var response = client.prompt(new PromptRequest(
                     List.of(new TextContent(effectivePrompt)),
                     sessionId
@@ -327,27 +324,24 @@ public class AcpClientCommand implements Runnable {
 
             flushThoughts();
             if (messageOutputPending) {
+                // TODO: Migration required -- System.out.println() used here because session update
+                // callbacks (handleSessionUpdate) write directly to System.out and this newline
+                // must go to the same stream for correct interleaving.
                 System.out.println();
                 messageOutputPending = false;
             }
             logger.infof("Done! Stop reason: %s", response.stopReason());
 
+            return CommandResult.SUCCESS;
         } catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
+            invocation.println("Error: " + e.getMessage());
             e.printStackTrace();
-            System.exit(1);
+            return CommandResult.FAILURE;
         }
     }
 
-    // ── Provider normalization ───────────────────────────────────────────────
+    // -- Provider normalization ----
 
-    /**
-     * Normalizes legacy provider names to their canonical form.
-     * <ul>
-     *   <li>{@code opencode-zen} &rarr; {@code zen}</li>
-     *   <li>{@code google-vertex-ai}, {@code anthropic-vertex-ai} &rarr; {@code vertex-ai}</li>
-     * </ul>
-     */
     private static String normalizeProvider(String provider) {
         return switch (provider) {
             case "opencode-zen","zen"      -> "zen";
@@ -357,17 +351,9 @@ public class AcpClientCommand implements Runnable {
         };
     }
 
-    // ── Model name resolution ────────────────────────────────────────────────
+    // -- Model name resolution ----
 
-    /**
-     * Resolves a simple model name to the full provider-specific model path.
-     * If the model already contains a {@code /}, it is returned as-is.
-     *
-     * <p>Currently only OpenCode + vertex-ai transforms the name:
-     * {@code claude-opus-4-6} &rarr; {@code google-vertex-anthropic/claude-opus-4-6@default}
-     */
     private static String resolveModelName(String agent, String provider, String model) {
-        // Already a fully-qualified model path — return as-is
         if (model.contains("/")) {
             return model;
         }
@@ -377,7 +363,7 @@ public class AcpClientCommand implements Runnable {
         return model;
     }
 
-    // ── Option resolution ────────────────────────────────────────────────────
+    // -- Option resolution ----
 
     private static String resolveOption(String cliValue, String envVar, String defaultValue) {
         if (cliValue != null && !cliValue.isEmpty()) {
@@ -390,7 +376,10 @@ public class AcpClientCommand implements Runnable {
         return defaultValue;
     }
 
-    // ── Session update handling ──────────────────────────────────────────────
+    // -- Session update handling ----
+    // NOTE: These handlers use System.out.print/println because they are invoked as callbacks
+    // from the ACP client transport layer, where CommandInvocation is not available.
+    // Refactoring to use invocation.println() would require changes to the ACP client API.
 
     private void handleSessionUpdate(String updateType, Object update) {
         if (update == null) {
@@ -464,7 +453,7 @@ public class AcpClientCommand implements Runnable {
         return content != null ? content.toString() : "";
     }
 
-    // ── Permission handling ──────────────────────────────────────────────────
+    // -- Permission handling ----
 
     private static RequestPermissionResponse handlePermissionRequest(RequestPermissionRequest request, String permissionMode) {
         var toolCall = request.toolCall();
@@ -485,11 +474,8 @@ public class AcpClientCommand implements Runnable {
         return new RequestPermissionResponse(new SelectedPermissionOutcome(selectedOptionId));
     }
 
-    // ── Provider env-var validation ──────────────────────────────────────────
+    // -- Provider env-var validation ----
 
-    /**
-     * Checks required environment variables for the given agent + provider combination.
-     */
     private static void checkProviderEnv(String agent, String provider) {
         String key = agent + ":" + provider;
         List<String> requiredVars = PROVIDER_ENV_VARS.get(key);
@@ -514,19 +500,8 @@ public class AcpClientCommand implements Runnable {
         }
     }
 
-    // ── Workspace backup ────────────────────────────────────────────────────
+    // -- Workspace backup ----
 
-    /**
-     * Backs up the current workspace to {@code target/workdirs/<name>_<timestamp>}.
-     * Only applies to Maven ({@code pom.xml}) or Gradle ({@code build.gradle} / {@code build.gradle.kts}) projects.
-     * Build output, VCS, and dependency directories are excluded from the copy.
-     *
-     * @param name the workspace project name; {@code "."} resolves to the current directory name
-     */
-    /**
-     * Backs up the workspace to target/workdirs and returns the backup directory path,
-     * or {@code null} if the backup was skipped or failed.
-     */
     private Path backupWorkspace(String name, Path workDir) {
         boolean isMaven = Files.exists(workDir.resolve("pom.xml"));
         boolean isGradle = Files.exists(workDir.resolve("build.gradle"))
@@ -537,7 +512,6 @@ public class AcpClientCommand implements Runnable {
             return null;
         }
 
-        // Resolve "." to the current directory name
         String projectName = ".".equals(name) ? workDir.getFileName().toString() : name;
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"));
         Path backupDir = workDir.resolve("target").resolve("workdirs").resolve(projectName + "_" + timestamp);

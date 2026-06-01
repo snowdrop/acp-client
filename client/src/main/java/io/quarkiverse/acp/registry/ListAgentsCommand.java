@@ -1,12 +1,16 @@
 package io.quarkiverse.acp.registry;
 
-import picocli.CommandLine;
+import org.aesh.command.Command;
+import org.aesh.command.CommandDefinition;
+import org.aesh.command.CommandResult;
+import org.aesh.command.invocation.CommandInvocation;
+import org.aesh.command.option.Option;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Subcommand that lists ACP agents — either locally installed or from the
+ * Subcommand that lists ACP agents -- either locally installed or from the
  * remote registry.
  *
  * <p>Usage:
@@ -15,44 +19,44 @@ import java.util.List;
  * acp reg list --registry   # all agents from the remote ACP registry
  * }</pre>
  */
-@CommandLine.Command(
+@CommandDefinition(
         name = "list",
         description = "List ACP agents (installed or from the registry)"
 )
-public class ListAgentsCommand implements Runnable {
+public class ListAgentsCommand implements Command<CommandInvocation> {
 
-    @CommandLine.Option(
-            names = {"--registry", "-r"},
+    @Option(shortName = 'r', name = "registry", hasValue = false,
             description = "List all agents from the remote ACP registry instead of installed ones")
     boolean fromRegistry;
 
     @Override
-    public void run() {
+    public CommandResult execute(CommandInvocation invocation) {
         var manager = new AcpRegistryManager();
         try {
             if (fromRegistry) {
-                listRegistryAgents(manager);
+                listRegistryAgents(manager, invocation);
             } else {
-                listInstalledAgents(manager);
+                listInstalledAgents(manager, invocation);
             }
+            return CommandResult.SUCCESS;
         } catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
-            System.exit(1);
+            invocation.println("Error: " + e.getMessage());
+            return CommandResult.FAILURE;
         }
     }
 
-    // ── Registry listing ────────────────────────────────────────────────────
+    // -- Registry listing ----
 
-    private void listRegistryAgents(AcpRegistryManager manager) throws Exception {
+    private void listRegistryAgents(AcpRegistryManager manager, CommandInvocation invocation) throws Exception {
         var registry = manager.fetchRegistry();
         String platform = AcpRegistryManager.detectPlatform();
 
-        System.out.println("ACP Registry v" + registry.version()
+        invocation.println("ACP Registry v" + registry.version()
                 + " - " + registry.agents().size() + " agents available");
-        System.out.println("Current platform: " + platform);
-        System.out.println();
-        System.out.printf("%-25s %-12s %-14s %s%n", "ID", "VERSION", "DISTRIBUTION", "DESCRIPTION");
-        System.out.println("-".repeat(90));
+        invocation.println("Current platform: " + platform);
+        invocation.println("");
+        invocation.println(String.format("%-25s %-12s %-14s %s", "ID", "VERSION", "DISTRIBUTION", "DESCRIPTION"));
+        invocation.println("-".repeat(90));
 
         for (var agent : registry.agents()) {
             String distType = describeDistribution(agent, platform);
@@ -61,47 +65,46 @@ public class ListAgentsCommand implements Runnable {
             String idDisplay = agent.website() != null && !agent.website().isEmpty()
                     ? "\033]8;;" + agent.website() + "\033\\" + agent.id() + "\033]8;;\033\\"
                     : agent.id();
-            // OSC 8 escape sequences are invisible, so pad based on the raw id length
             int padding = 25 - agent.id().length();
-            System.out.printf("%s%-" + padding + "s %-12s %-14s %s%s%n",
+            invocation.println(String.format("%s%-" + padding + "s %-12s %-14s %s%s",
                     idDisplay,
                     "",
                     agent.version(),
                     distType,
                     desc,
-                    installed ? " [installed]" : "");
+                    installed ? " [installed]" : ""));
         }
     }
 
-    // ── Installed listing ───────────────────────────────────────────────────
+    // -- Installed listing ----
 
-    private void listInstalledAgents(AcpRegistryManager manager) {
+    private void listInstalledAgents(AcpRegistryManager manager, CommandInvocation invocation) {
         var installed = manager.listInstalled();
         if (installed.isEmpty()) {
-            System.out.println("No ACP agents installed in " + AcpRegistryManager.ACP_HOME);
-            System.out.println();
-            System.out.println("  acp reg list --registry   list available agents");
-            System.out.println("  acp reg install <id>      install an agent");
+            invocation.println("No ACP agents installed in " + AcpRegistryManager.ACP_HOME);
+            invocation.println("");
+            invocation.println("  acp reg list --registry   list available agents");
+            invocation.println("  acp reg install <id>      install an agent");
             return;
         }
 
-        System.out.println("Installed ACP agents (" + AcpRegistryManager.ACP_HOME + "):");
-        System.out.println();
-        System.out.printf("%-25s %-12s %-8s %-18s %s%n",
-                "ID", "VERSION", "TYPE", "PLATFORM", "COMMAND");
-        System.out.println("-".repeat(95));
+        invocation.println("Installed ACP agents (" + AcpRegistryManager.ACP_HOME + "):");
+        invocation.println("");
+        invocation.println(String.format("%-25s %-12s %-8s %-18s %s",
+                "ID", "VERSION", "TYPE", "PLATFORM", "COMMAND"));
+        invocation.println("-".repeat(95));
 
         for (var agent : installed) {
-            System.out.printf("%-25s %-12s %-8s %-18s %s%n",
+            invocation.println(String.format("%-25s %-12s %-8s %-18s %s",
                     agent.id(),
                     agent.version(),
                     agent.distributionType(),
                     agent.platform(),
-                    truncate(agent.cmd(), 30));
+                    truncate(agent.cmd(), 30)));
         }
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────────────
+    // -- Helpers ----
 
     private static String describeDistribution(AcpRegistryManager.Agent agent, String platform) {
         var dist = agent.distribution();

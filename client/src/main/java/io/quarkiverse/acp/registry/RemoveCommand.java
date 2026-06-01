@@ -1,6 +1,10 @@
 package io.quarkiverse.acp.registry;
 
-import picocli.CommandLine;
+import org.aesh.command.Command;
+import org.aesh.command.CommandDefinition;
+import org.aesh.command.CommandResult;
+import org.aesh.command.invocation.CommandInvocation;
+import org.aesh.command.option.Argument;
 
 /**
  * Subcommand that removes a previously installed ACP agent.
@@ -12,25 +16,24 @@ import picocli.CommandLine;
  *
  * <p>Deletes the agent directory under {@code $HOME/.acp/agents/<agent-id>/}.
  */
-@CommandLine.Command(
+@CommandDefinition(
         name = "remove",
         description = "Remove an installed ACP agent"
 )
-public class RemoveCommand implements Runnable {
+public class RemoveCommand implements Command<CommandInvocation> {
 
-    @CommandLine.Parameters(
-            index = "0",
-            description = "Agent ID to remove (e.g. opencode, claude-acp)")
+    @Argument(description = "Agent ID to remove (e.g. opencode, claude-acp)", required = true)
     String agentId;
 
     @Override
-    public void run() {
+    public CommandResult execute(CommandInvocation invocation) {
         try {
             var manager = new AcpRegistryManager();
             manager.removeAgent(agentId);
+            return CommandResult.SUCCESS;
         } catch (Exception e) {
-            System.err.println("Error removing agent: " + e.getMessage());
-            System.exit(1);
+            invocation.println("Error removing agent: " + e.getMessage());
+            return CommandResult.FAILURE;
         }
     }
 }

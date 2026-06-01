@@ -1,6 +1,11 @@
 package io.quarkiverse.acp.registry;
 
-import picocli.CommandLine;
+import org.aesh.command.Command;
+import org.aesh.command.CommandDefinition;
+import org.aesh.command.CommandResult;
+import org.aesh.command.invocation.CommandInvocation;
+import org.aesh.command.option.Argument;
+import org.aesh.command.option.Option;
 
 /**
  * Subcommand that installs an ACP agent from the remote registry.
@@ -14,30 +19,28 @@ import picocli.CommandLine;
  * <p>The agent binary (or npx/uvx metadata) is stored under
  * {@code $HOME/.acp/agents/<agent-id>/}.
  */
-@CommandLine.Command(
+@CommandDefinition(
         name = "install",
         description = "Install an ACP agent from the registry"
 )
-public class InstallCommand implements Runnable {
+public class InstallCommand implements Command<CommandInvocation> {
 
-    @CommandLine.Parameters(
-            index = "0",
-            description = "Agent ID from the ACP registry (e.g. opencode, claude-acp, gemini)")
+    @Argument(description = "Agent ID from the ACP registry (e.g. opencode, claude-acp, gemini)", required = true)
     String agentId;
 
-    @CommandLine.Option(
-            names = {"--force", "-f"},
+    @Option(shortName = 'f', name = "force", hasValue = false,
             description = "Force reinstall even if the agent is already installed")
     boolean force;
 
     @Override
-    public void run() {
+    public CommandResult execute(CommandInvocation invocation) {
         try {
             var manager = new AcpRegistryManager();
             manager.installAgent(agentId, force);
+            return CommandResult.SUCCESS;
         } catch (Exception e) {
-            System.err.println("Error installing agent: " + e.getMessage());
-            System.exit(1);
+            invocation.println("Error installing agent: " + e.getMessage());
+            return CommandResult.FAILURE;
         }
     }
 }

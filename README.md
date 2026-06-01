@@ -14,7 +14,7 @@ The project is organized as a multi-module Maven build:
 |----------|-----------------|------------------------------------------------------------------------------------------------------------------|
 | `schema` | `acp-schema`    | ACP JSON Schema (`v1`), generated Java records/enums, and `JSonSchemaGenerator` code generator                   |
 | `core`   | `acp-core` | ACP implementation library: `AcpClient`, `AcpAsyncClient`, `AcpSyncClient`, stdio transport. Depends on `schema` |
-| `client` | `acp-client` | Picocli CLI (`AcpAgentCommand`), skills, and sandbox. Depends on `core`. Built as Quarkus uber-jar              |
+| `client` | `acp-client` | Aesh CLI (`AcpAgentCommand`), skills, and sandbox. Depends on `core`. Built as Quarkus uber-jar                  |
 
 ## Prerequisites
 

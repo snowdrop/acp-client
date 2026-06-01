@@ -1,6 +1,9 @@
 package io.quarkiverse.acp.registry;
 
-import picocli.CommandLine;
+import org.aesh.command.Command;
+import org.aesh.command.CommandResult;
+import org.aesh.command.GroupCommandDefinition;
+import org.aesh.command.invocation.CommandInvocation;
 
 /**
  * Parent subcommand grouping ACP registry operations.
@@ -13,18 +16,21 @@ import picocli.CommandLine;
  * acp reg remove opencode     # remove an installed agent
  * }</pre>
  */
-@CommandLine.Command(
+@GroupCommandDefinition(
         name = "reg",
         description = "Manage ACP agents via the registry (list, install, remove)",
-        subcommands = {ListAgentsCommand.class, InstallCommand.class, RemoveCommand.class}
+        groupCommands = {ListAgentsCommand.class, InstallCommand.class, RemoveCommand.class}
 )
-public class RegistryCommand implements Runnable {
-
-    @CommandLine.Spec
-    CommandLine.Model.CommandSpec spec;
+public class RegistryCommand implements Command<CommandInvocation> {
 
     @Override
-    public void run() {
-        spec.commandLine().usage(System.out);
+    public CommandResult execute(CommandInvocation invocation) {
+        invocation.println("Usage: acp reg <command>");
+        invocation.println("");
+        invocation.println("Commands:");
+        invocation.println("  list      List ACP agents (installed or from the registry)");
+        invocation.println("  install   Install an ACP agent from the registry");
+        invocation.println("  remove    Remove an installed ACP agent");
+        return CommandResult.SUCCESS;
     }
 }
