@@ -16,7 +16,6 @@
 
     <properties>
         <quarkus.package.type>uber-jar</quarkus.package.type>
-        <aesh.version>3.8</aesh.version>
     </properties>
 
     <dependencyManagement>
@@ -27,12 +26,6 @@
                 <version>${quarkus.platform.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <!-- Override readline version from Quarkus BOM to match Aesh 3.8 -->
-            <dependency>
-                <groupId>org.aesh</groupId>
-                <artifactId>readline</artifactId>
-                <version>${aesh.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -57,7 +50,7 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Core module (AcpClient, transport) -->
+        <!-- Core module (Acp Client, transport) -->
         <dependency>
             <groupId>io.quarkiverse.ai</groupId>
             <artifactId>acp-java-core</artifactId>
