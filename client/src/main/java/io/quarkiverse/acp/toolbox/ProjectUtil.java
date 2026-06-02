@@ -15,14 +15,11 @@ public class ProjectUtil {
 
     /**
      *
-     * Copy the application of the current working directory to the build system tool directory
-     * <p>
-     * Maven: tagret/workdirs
-     * Gradle: build/workdirs
+     * Copy the application of the current working directory to a temporary folder
      *
      * @param name The name of the project/application to back up/duplicate
      * @param workDir The path of the cwd of the application
-     * @return The path of the project/application backuped
+     * @return The temporary path of the project/application backuped
      */
     public static Path backupWorkspace(String name, Path workDir) {
         boolean isMaven = Files.exists(workDir.resolve("pom.xml"));
@@ -36,12 +33,13 @@ public class ProjectUtil {
 
         String projectName = ".".equals(name) ? workDir.getFileName().toString() : name;
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-        String outputDir = isGradle ? "build" : "target";
-        Path backupDir = workDir.resolve(outputDir).resolve("workdirs").resolve(projectName + "_" + timestamp);
 
         Set<String> excludes = Set.of("target", "build", ".git", ".gradle", ".idea", "node_modules",".claude", ".env");
 
         try {
+            Path tempDirectory = Files.createTempDirectory(projectName + "-" + timestamp + "_");
+            logger.debug("Temporary folder created successfully!");
+
             Files.walk(workDir)
                     .filter(path -> {
                         Path relative = workDir.relativize(path);
@@ -49,7 +47,7 @@ public class ProjectUtil {
                                 || !excludes.contains(relative.getName(0).toString());
                     })
                     .forEach(source -> {
-                        Path dest = backupDir.resolve(workDir.relativize(source));
+                        Path dest = tempDirectory.resolve(workDir.relativize(source));
                         try {
                             if (Files.isDirectory(source)) {
                                 Files.createDirectories(dest);
@@ -61,10 +59,10 @@ public class ProjectUtil {
                             logger.warnf("Failed to copy %s: %s", source, e.getMessage());
                         }
                     });
-            logger.infof("Workspace backed up to: %s", backupDir);
-            return backupDir;
+            logger.infof("Workspace backed up to: %s", tempDirectory);
+            return tempDirectory;
         } catch (IOException e) {
-            logger.warnf("Failed to backup workspace: %s", e.getMessage());
+            logger.errorf("Failed to backup workspace: %s", e.getMessage());
             return null;
         }
     }
