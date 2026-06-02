@@ -1,5 +1,6 @@
 package io.quarkiverse.acp;
 
+import io.quarkiverse.acp.toolbox.GitUtil;
 import io.quarkiverse.acp.registry.AcpRegistryManager;
 import io.quarkiverse.acp.registry.RegistryCommand;
 import io.quarkiverse.agentclientprotocol.sdk.client.AcpClient;
@@ -140,7 +141,7 @@ public class AcpCommand implements Command<CommandInvocation> {
     @Override
     public CommandResult execute(CommandInvocation invocation) {
         // Configure log level if provided
-        logLevel = resolveOption(logLevel, "ACP_LOG_LEVEL", null);
+        logLevel = resolveValueWithPrecedence(logLevel, "ACP_LOG_LEVEL", null);
         if (logLevel != null && !logLevel.isEmpty()) {
             Level level = Level.parse(logLevel.toUpperCase());
             java.util.logging.Logger.getLogger("io.quarkiverse").setLevel(level);
@@ -158,13 +159,13 @@ public class AcpCommand implements Command<CommandInvocation> {
         }
 
         // Resolve options: CLI arg > env var > default
-        prompt = resolveOption(prompt, "ACP_PROMPT", "Say Hello");
-        permissionMode = resolveOption(permissionMode, "ACP_PERMISSION_MODE", "allow_always");
+        prompt = resolveValueWithPrecedence(prompt, "ACP_PROMPT", "Say Hello");
+        permissionMode = resolveValueWithPrecedence(permissionMode, "ACP_PERMISSION_MODE", "allow_always");
 
         // -- Resolve agent binary and args ----
-        agent = resolveOption(agent, "ACP_AGENT", "opencode");
-        acpAgentBinary = resolveOption(acpAgentBinary, "ACP_AGENT_BINARY", null);
-        acpAgentArgs = resolveOption(acpAgentArgs, "ACP_AGENT_ARGS", null);
+        agent = resolveValueWithPrecedence(agent, "ACP_AGENT", "opencode");
+        acpAgentBinary = resolveValueWithPrecedence(acpAgentBinary, "ACP_AGENT_BINARY", null);
+        acpAgentArgs = resolveValueWithPrecedence(acpAgentArgs, "ACP_AGENT_ARGS", null);
 
         String binary;
         String args;
@@ -194,22 +195,22 @@ public class AcpCommand implements Command<CommandInvocation> {
         }
 
         // -- Resolve and normalize provider ----
-        provider = resolveOption(provider, "ACP_PROVIDER", "zen");
+        provider = resolveValueWithPrecedence(provider, "ACP_PROVIDER", "zen");
         provider = normalizeProvider(provider);
 
         // -- Resolve model name ----
-        model = resolveOption(model, "ACP_MODEL", null);
+        model = resolveValueWithPrecedence(model, "ACP_MODEL", null);
         if (model != null) {
             model = resolveModelName(agent, provider, model);
         }
 
         // -- Timeouts ----
-        String reqTimeoutStr = resolveOption(
+        String reqTimeoutStr = resolveValueWithPrecedence(
                 requestTimeout != null ? requestTimeout.toString() : null,
                 "ACP_REQUEST_TIMEOUT", "30");
         Duration reqTimeout = Duration.ofSeconds(Long.parseLong(reqTimeoutStr));
 
-        String promptTimeoutStr = resolveOption(
+        String promptTimeoutStr = resolveValueWithPrecedence(
                 promptTimeout != null ? promptTimeout.toString() : null,
                 "ACP_PROMPT_TIMEOUT", "0");
         long promptTimeoutSecs = Long.parseLong(promptTimeoutStr);
@@ -219,13 +220,13 @@ public class AcpCommand implements Command<CommandInvocation> {
         checkProviderEnv(agent, provider);
 
         // 0b. Resolve workspace path: CLI/env > current directory
-        workspacePath = resolveOption(workspacePath, "WORKSPACE_PATH", null);
+        workspacePath = resolveValueWithPrecedence(workspacePath, "WORKSPACE_PATH", null);
         String sessionCwd = workspacePath != null ? workspacePath : System.getProperty("user.dir");
         logger.infof("Workspace CWD: %s", sessionCwd);
 
         // 0c. Backup workspace if requested and project is Maven/Gradle
-        backup = resolveOption(backup, "ACP_BACKUP", "yes");
-        backupProjectName = resolveOption(backupProjectName, "ACP_BACKUP_PROJECT_NAME", ".");
+        backup = resolveValueWithPrecedence(backup, "ACP_BACKUP", "yes");
+        backupProjectName = resolveValueWithPrecedence(backupProjectName, "ACP_BACKUP_PROJECT_NAME", ".");
         if ("yes".equalsIgnoreCase(backup)) {
             Path backupDir = backupWorkspace(backupProjectName, Path.of(sessionCwd));
             if (backupDir != null) {
@@ -309,11 +310,25 @@ public class AcpCommand implements Command<CommandInvocation> {
                 }
             }
 
-            // 7. Send a prompt
-            skillPath = resolveOption(skillPath, "SKILL_PATH", null);
+            // 7. Send a prompt enhanced with SKILL instructions as
+            // acp still don't support natively that feature: https://agentclientprotocol.com/rfds/additional-directories#does-acp-define-agents-skills-or-instruction-directory-conventions
+            skillPath = resolveValueWithPrecedence(skillPath, "SKILL_PATH", null);
+
+            // Resolve if skillPath is a Url. If this is a url fetch it under
+            // the global home path of the agents SKILLS: $HOME/.agents/skills
+            if (GitUtil.isUrl(skillPath)) {
+                try {
+                    skillPath = GitUtil.resolveFromUrl(skillPath).toString();
+                } catch (IOException e) {
+                    invocation.println("ERROR: Failed to resolve skill from URL: " + skillPath);
+                    invocation.println("       " + e.getMessage());
+                    return CommandResult.FAILURE;
+                }
+            }
+
             String effectivePrompt = prompt;
             if (skillPath != null) {
-                effectivePrompt = prompt + "\n\nPlease read the skill file at: " + skillPath + " and follow its instructions.";
+                effectivePrompt = prompt + "\n\nPlease read the skill: " + skillPath + " and follow its instructions.";
             }
             logger.infof("Sending prompt: %s", effectivePrompt);
             invocation.println("Here is the AI response:");
@@ -365,7 +380,15 @@ public class AcpCommand implements Command<CommandInvocation> {
 
     // -- Option resolution ----
 
-    private static String resolveOption(String cliValue, String envVar, String defaultValue) {
+    /**
+     * Resolve the value: command line value > environment variable > default value
+     *
+     * @param cliValue The command line value
+     * @param envVar The environment variable name that we use to the value using: System.getenv(envVar);
+     * @param defaultValue The default value
+     * @return The value resolved
+     */
+    private static String resolveValueWithPrecedence(String cliValue, String envVar, String defaultValue) {
         if (cliValue != null && !cliValue.isEmpty()) {
             return cliValue;
         }
