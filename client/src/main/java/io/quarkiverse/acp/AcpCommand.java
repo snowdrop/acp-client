@@ -328,7 +328,7 @@ public class AcpCommand implements Command<CommandInvocation> {
 
             String effectivePrompt = prompt;
             if (skillPath != null) {
-                effectivePrompt = prompt + "\n\nPlease read the skill file at: " + skillPath + " and follow its instructions.";
+                effectivePrompt = prompt + "\n\nPlease read the skill: " + skillPath + " and follow its instructions.";
             }
             logger.infof("Sending prompt: %s", effectivePrompt);
             invocation.println("Here is the AI response:");
