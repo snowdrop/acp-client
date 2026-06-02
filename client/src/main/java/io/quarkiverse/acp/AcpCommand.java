@@ -315,9 +315,15 @@ public class AcpCommand implements Command<CommandInvocation> {
             skillPath = resolveValueWithPrecedence(skillPath, "SKILL_PATH", null);
 
             // Resolve if skillPath is a Url. If this is a url fetch it under
-            // the global home path of the agent SKILLS: $HOME/.agents/skills
+            // the global home path of the agents SKILLS: $HOME/.agents/skills
             if (GitUtil.isUrl(skillPath)) {
-                skillPath = GitUtil.resolveFromUrl(skillPath).toString();
+                try {
+                    skillPath = GitUtil.resolveFromUrl(skillPath).toString();
+                } catch (IOException e) {
+                    invocation.println("ERROR: Failed to resolve skill from URL: " + skillPath);
+                    invocation.println("       " + e.getMessage());
+                    return CommandResult.FAILURE;
+                }
             }
 
             String effectivePrompt = prompt;
