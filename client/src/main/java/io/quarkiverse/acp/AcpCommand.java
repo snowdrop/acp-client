@@ -1,6 +1,7 @@
 package io.quarkiverse.acp;
 
 import io.quarkiverse.acp.toolbox.GitUtil;
+import io.quarkiverse.acp.toolbox.ProjectUtil;
 import io.quarkiverse.acp.registry.AcpRegistryManager;
 import io.quarkiverse.acp.registry.RegistryCommand;
 import io.quarkiverse.agentclientprotocol.sdk.client.AcpClient;
@@ -17,14 +18,10 @@ import org.aesh.command.invocation.CommandInvocation;
 import org.aesh.command.option.Option;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Level;
 
 /**
@@ -141,7 +138,7 @@ public class AcpCommand implements Command<CommandInvocation> {
     @Override
     public CommandResult execute(CommandInvocation invocation) {
         // Configure log level if provided
-        logLevel = resolveValueWithPrecedence(logLevel, "ACP_LOG_LEVEL", null);
+        logLevel = ProjectUtil.resolveValueWithPrecedence(logLevel, "ACP_LOG_LEVEL", null);
         if (logLevel != null && !logLevel.isEmpty()) {
             Level level = Level.parse(logLevel.toUpperCase());
             java.util.logging.Logger.getLogger("io.quarkiverse").setLevel(level);
@@ -159,13 +156,13 @@ public class AcpCommand implements Command<CommandInvocation> {
         }
 
         // Resolve options: CLI arg > env var > default
-        prompt = resolveValueWithPrecedence(prompt, "ACP_PROMPT", "Say Hello");
-        permissionMode = resolveValueWithPrecedence(permissionMode, "ACP_PERMISSION_MODE", "allow_always");
+        prompt = ProjectUtil.resolveValueWithPrecedence(prompt, "ACP_PROMPT", "Say Hello");
+        permissionMode = ProjectUtil.resolveValueWithPrecedence(permissionMode, "ACP_PERMISSION_MODE", "allow_always");
 
         // -- Resolve agent binary and args ----
-        agent = resolveValueWithPrecedence(agent, "ACP_AGENT", "opencode");
-        acpAgentBinary = resolveValueWithPrecedence(acpAgentBinary, "ACP_AGENT_BINARY", null);
-        acpAgentArgs = resolveValueWithPrecedence(acpAgentArgs, "ACP_AGENT_ARGS", null);
+        agent = ProjectUtil.resolveValueWithPrecedence(agent, "ACP_AGENT", "opencode");
+        acpAgentBinary = ProjectUtil.resolveValueWithPrecedence(acpAgentBinary, "ACP_AGENT_BINARY", null);
+        acpAgentArgs = ProjectUtil.resolveValueWithPrecedence(acpAgentArgs, "ACP_AGENT_ARGS", null);
 
         String binary;
         String args;
@@ -195,22 +192,22 @@ public class AcpCommand implements Command<CommandInvocation> {
         }
 
         // -- Resolve and normalize provider ----
-        provider = resolveValueWithPrecedence(provider, "ACP_PROVIDER", "zen");
+        provider = ProjectUtil.resolveValueWithPrecedence(provider, "ACP_PROVIDER", "zen");
         provider = normalizeProvider(provider);
 
         // -- Resolve model name ----
-        model = resolveValueWithPrecedence(model, "ACP_MODEL", null);
+        model = ProjectUtil.resolveValueWithPrecedence(model, "ACP_MODEL", null);
         if (model != null) {
             model = resolveModelName(agent, provider, model);
         }
 
         // -- Timeouts ----
-        String reqTimeoutStr = resolveValueWithPrecedence(
+        String reqTimeoutStr = ProjectUtil.resolveValueWithPrecedence(
                 requestTimeout != null ? requestTimeout.toString() : null,
                 "ACP_REQUEST_TIMEOUT", "30");
         Duration reqTimeout = Duration.ofSeconds(Long.parseLong(reqTimeoutStr));
 
-        String promptTimeoutStr = resolveValueWithPrecedence(
+        String promptTimeoutStr = ProjectUtil.resolveValueWithPrecedence(
                 promptTimeout != null ? promptTimeout.toString() : null,
                 "ACP_PROMPT_TIMEOUT", "0");
         long promptTimeoutSecs = Long.parseLong(promptTimeoutStr);
@@ -220,15 +217,15 @@ public class AcpCommand implements Command<CommandInvocation> {
         checkProviderEnv(agent, provider);
 
         // 0b. Resolve workspace path: CLI/env > current directory
-        workspacePath = resolveValueWithPrecedence(workspacePath, "WORKSPACE_PATH", null);
+        workspacePath = ProjectUtil.resolveValueWithPrecedence(workspacePath, "WORKSPACE_PATH", null);
         String sessionCwd = workspacePath != null ? workspacePath : System.getProperty("user.dir");
         logger.infof("Workspace CWD: %s", sessionCwd);
 
         // 0c. Backup workspace if requested and project is Maven/Gradle
-        backup = resolveValueWithPrecedence(backup, "ACP_BACKUP", "yes");
-        backupProjectName = resolveValueWithPrecedence(backupProjectName, "ACP_BACKUP_PROJECT_NAME", ".");
+        backup = ProjectUtil.resolveValueWithPrecedence(backup, "ACP_BACKUP", "yes");
+        backupProjectName = ProjectUtil.resolveValueWithPrecedence(backupProjectName, "ACP_BACKUP_PROJECT_NAME", ".");
         if ("yes".equalsIgnoreCase(backup)) {
-            Path backupDir = backupWorkspace(backupProjectName, Path.of(sessionCwd));
+            Path backupDir = ProjectUtil.backupWorkspace(backupProjectName, Path.of(sessionCwd));
             if (backupDir != null) {
                 sessionCwd = backupDir.toAbsolutePath().toString();
                 logger.infof("CWD set to backup directory: %s", sessionCwd);
@@ -312,7 +309,7 @@ public class AcpCommand implements Command<CommandInvocation> {
 
             // 7. Send a prompt enhanced with SKILL instructions as
             // acp still don't support natively that feature: https://agentclientprotocol.com/rfds/additional-directories#does-acp-define-agents-skills-or-instruction-directory-conventions
-            skillPath = resolveValueWithPrecedence(skillPath, "SKILL_PATH", null);
+            skillPath = ProjectUtil.resolveValueWithPrecedence(skillPath, "SKILL_PATH", null);
 
             // Resolve if skillPath is a Url. If this is a url fetch it under
             // the global home path of the agents SKILLS: $HOME/.agents/skills
@@ -376,27 +373,6 @@ public class AcpCommand implements Command<CommandInvocation> {
             return "google-vertex-anthropic/" + model + "@default";
         }
         return model;
-    }
-
-    // -- Option resolution ----
-
-    /**
-     * Resolve the value: command line value > environment variable > default value
-     *
-     * @param cliValue The command line value
-     * @param envVar The environment variable name that we use to the value using: System.getenv(envVar);
-     * @param defaultValue The default value
-     * @return The value resolved
-     */
-    private static String resolveValueWithPrecedence(String cliValue, String envVar, String defaultValue) {
-        if (cliValue != null && !cliValue.isEmpty()) {
-            return cliValue;
-        }
-        String envValue = System.getenv(envVar);
-        if (envValue != null && !envValue.isEmpty()) {
-            return envValue;
-        }
-        return defaultValue;
     }
 
     // -- Session update handling ----
@@ -511,61 +487,7 @@ public class AcpCommand implements Command<CommandInvocation> {
         }
 
         for (String varName : requiredVars) {
-            requireEnv(varName, provider);
-        }
-    }
-
-    private static void requireEnv(String varName, String provider) {
-        String value = System.getenv(varName);
-        if (value == null || value.isBlank()) {
-            System.err.println("ERROR: " + varName + " environment variable is not set (required for " + provider + " provider).");
-            System.exit(1);
-        }
-    }
-
-    // -- Workspace backup ----
-
-    private Path backupWorkspace(String name, Path workDir) {
-        boolean isMaven = Files.exists(workDir.resolve("pom.xml"));
-        boolean isGradle = Files.exists(workDir.resolve("build.gradle"))
-                || Files.exists(workDir.resolve("build.gradle.kts"));
-
-        if (!isMaven && !isGradle) {
-            logger.info("Skipping workspace backup (not a Maven or Gradle project)");
-            return null;
-        }
-
-        String projectName = ".".equals(name) ? workDir.getFileName().toString() : name;
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"));
-        Path backupDir = workDir.resolve("target").resolve("workdirs").resolve(projectName + "_" + timestamp);
-
-        Set<String> excludes = Set.of("target", "build", ".git", ".gradle", ".idea", "node_modules",".claude", ".env");
-
-        try {
-            Files.walk(workDir)
-                    .filter(path -> {
-                        Path relative = workDir.relativize(path);
-                        return relative.getNameCount() == 0
-                                || !excludes.contains(relative.getName(0).toString());
-                    })
-                    .forEach(source -> {
-                        Path dest = backupDir.resolve(workDir.relativize(source));
-                        try {
-                            if (Files.isDirectory(source)) {
-                                Files.createDirectories(dest);
-                            } else {
-                                Files.createDirectories(dest.getParent());
-                                Files.copy(source, dest);
-                            }
-                        } catch (IOException e) {
-                            logger.warnf("Failed to copy %s: %s", source, e.getMessage());
-                        }
-                    });
-            logger.infof("Workspace backed up to: %s", backupDir);
-            return backupDir;
-        } catch (IOException e) {
-            logger.warnf("Failed to backup workspace: %s", e.getMessage());
-            return null;
+            ProjectUtil.requireEnv(varName, provider);
         }
     }
 }
