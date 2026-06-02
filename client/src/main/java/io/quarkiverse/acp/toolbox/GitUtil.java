@@ -3,9 +3,14 @@ package io.quarkiverse.acp.toolbox;
 import org.jboss.logging.Logger;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 public class GitUtil {
 
@@ -21,6 +26,93 @@ public class GitUtil {
             || skillPath.startsWith("git://")
             || skillPath.startsWith("ssh://")
             || skillPath.matches("^[\\w.-]+@[\\w.-]+:.*");
+    }
+
+    /**
+     * Returns {@code true} if the URL points to a raw/text file that should
+     * be downloaded directly via HTTP rather than cloned with git.
+     *
+     *
+     * @param url the URL to check
+     * @return {@code true} if this is a downloadable text file
+     */
+    static boolean isRawFileUrl(String url) {
+        if (url == null) return false;
+
+        // Send a HEAD request and check if the Content-Type header contains "text/plain"
+        try {
+            var client = HttpClient.newHttpClient();
+            var request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .method("HEAD", HttpRequest.BodyPublishers.noBody())
+                    .build();
+            var response = client.send(request, HttpResponse.BodyHandlers.discarding());
+
+            if (response.statusCode() == 200) {
+                String contentType = response.headers().map().entrySet().stream()
+                        .filter(e -> e.getKey().equalsIgnoreCase("content-type"))
+                        .flatMap(e -> e.getValue().stream())
+                        .findFirst()
+                        .orElse(null);
+
+                return contentType != null && contentType.contains("text/plain");
+            } else {
+                throw new RuntimeException("Url not found !");
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Downloads a raw file URL and saves it under {@code SKILLS_DIR}.
+     *
+     * @param url the raw file URL to download
+     * @return the local {@link Path} where the file was saved
+     * @throws IOException if the download fails
+     */
+    private static Path downloadRawFile(String url) throws IOException {
+        String path = URI.create(url).getPath();
+        String fileName = path.substring(path.lastIndexOf('/') + 1);
+        if (fileName.isBlank()) {
+            throw new IOException("Cannot extract filename from URL: " + url);
+        }
+
+        // Extract the parent folder name from the URL path.
+        // If it differs from "skills", use it as a subdirectory under SKILLS_DIR
+        // e.g. .../dummy/SKILL.md  -> ~/.agents/skills/dummy/SKILL.md
+        // e.g. .../skills/SKILL.md -> ~/.agents/skills/SKILL.md
+        String pathWithoutFile = path.substring(0, path.lastIndexOf('/'));
+        String folder = pathWithoutFile.substring(pathWithoutFile.lastIndexOf('/') + 1);
+
+        Path targetDir = "skills".equals(folder) ? SKILLS_DIR : SKILLS_DIR.resolve(folder);
+        Path targetFile = targetDir.resolve(fileName);
+        Files.createDirectories(targetDir);
+
+        logger.infof("Downloading skill file from %s", url);
+        try {
+            var client = HttpClient.newHttpClient();
+            var request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .GET()
+                .build();
+            var response = client.send(request,
+                HttpResponse.BodyHandlers.ofFile(targetFile,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE));
+            if (response.statusCode() != 200) {
+                Files.deleteIfExists(targetFile);
+                throw new IOException("HTTP " + response.statusCode() + " when fetching: " + url);
+            }
+            logger.infof("Skill file saved to: %s", targetFile);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Download interrupted: " + url, e);
+        }
+
+        return targetFile;
     }
 
     /**
@@ -76,6 +168,11 @@ public class GitUtil {
      * @throws IOException if cloning/pulling or directory creation fails
      */
     public static Path resolveFromUrl(String url) throws IOException {
+        // Raw file URLs are downloaded directly, not cloned
+        if (isRawFileUrl(url)) {
+            return downloadRawFile(url);
+        }
+
         GitHubTreeUrl parsed = parseGitHubTreeUrl(url);
 
         String repoUrl = parsed != null ? parsed.repoUrl : url;
