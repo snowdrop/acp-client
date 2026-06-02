@@ -378,7 +378,7 @@ public class AcpCommand implements Command<CommandInvocation> {
      * Resolve the value: command line value > environment variable > default value
      *
      * @param cliValue The command line value
-     * @param envVar The environment variable value
+     * @param envVar The environment variable name that we use to the value using: System.getenv(envVar);
      * @param defaultValue The default value
      * @return The value resolved
      */
