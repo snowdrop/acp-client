@@ -57,7 +57,7 @@ public class GitUtil {
 
                 return contentType != null && contentType.contains("text/plain");
             } else {
-                throw new RuntimeException("Url not found !");
+                throw new RuntimeException("Unexpected http status code: " + response.statusCode());
             }
         } catch (Exception ex) {
             ex.printStackTrace();
