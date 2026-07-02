@@ -1,8 +1,8 @@
 {
   "aliases": {
     "acp": {
-      "script-ref": "client/target/acp-java-client-0.1.0-SNAPSHOT-runner.jar",
-      "description": "ACP Java Client for any ACP-compatible agent"
+      "description": "ACP Java Client for any ACP-compatible agent",
+      "script-ref": "io.quarkiverse.ai:acp-java-client:0.1.0-SNAPSHOT:runner"
     }
   }
 }

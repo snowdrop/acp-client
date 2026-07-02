@@ -1,0 +1,120 @@
+name: CI - Early Access
+
+on:
+  schedule:
+    # Runs at 00:00 UTC every day
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  JAVA_VERSION: '21'
+  JAVA_DISTRO: 'temurin'
+
+jobs:
+  precheck:
+    if: github.repository == 'snowdrop/acp-client' && startsWith(github.event.head_commit.message, 'Releasing version') != true
+    runs-on: ubuntu-latest
+    outputs:
+      VERSION: ${{ steps.vars.outputs.VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Cancel previous run
+        uses: styfle/cancel-workflow-action@0.13.1
+        with:
+          access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRO }}
+          cache: maven
+
+      - name: Version
+        id: vars
+        shell: bash
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "VERSION=$(echo $VERSION)" >> $GITHUB_OUTPUT
+
+  release:
+    needs: [ precheck ]
+    if: endsWith(${{ needs.precheck.outputs.VERSION }}, '-SNAPSHOT')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRO }}
+          cache: maven
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - name: Configure git user and email
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "Github Action"
+
+      - name: Build the uber-jar of the acp-java-client
+        run: |
+          mvn -ntp -B clean install -DskipTests -Dquarkus.package.jar.type=uber-jar
+
+      - name: Update jBang catalog for snapshot
+        if: github.ref == 'refs/heads/main'
+        run: |
+          VERSION=${{ needs.precheck.outputs.VERSION }}
+          ARTIFACT_ID=$(mvn help:evaluate -Dexpression=project.artifactId -q -DforceStdout -pl client)
+          GROUP_ID=$(mvn help:evaluate -Dexpression=project.groupId -q -DforceStdout -pl client)
+          SNAPSHOT_GAV="${GROUP_ID}:${ARTIFACT_ID}:${VERSION}:runner"
+          jq --arg gav "$SNAPSHOT_GAV" '.aliases.acp."script-ref" = $gav' jbang-catalog.json > tmp.json && mv tmp.json jbang-catalog.json
+
+      - name: Commit the changes
+        run: |
+          VERSION=${{ needs.precheck.outputs.VERSION }}
+          git add .
+          if git diff --cached --quiet; then
+            echo "No changes detected in jbang-catalog.json. Skipping commit."
+          else
+            echo "Changes detected. Committing version ${VERSION}..."
+            git commit -m "update jbang catalog script-ref: ${VERSION}"
+            git push origin main
+          fi
+
+      - name: Create early-access release with uber-jar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${{ needs.precheck.outputs.VERSION }}
+          UBER_JAR=$(find client/target -name "*-runner.jar" -type f | head -1)
+
+          # Delete existing early-access release if present
+          gh release delete early-access --yes --cleanup-tag 2>/dev/null || true
+
+          # Create new early-access release
+          gh release create early-access \
+            --title "Early Access - ${VERSION}" \
+            --notes "Early access build of version ${VERSION}" \
+            --prerelease \
+            "${UBER_JAR}"
+
+      - name: Deploy the maven GAV on central
+        run: |
+          mvn -B deploy -Prelease -DskipTests
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
