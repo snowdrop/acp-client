@@ -74,7 +74,7 @@ export CLOUD_ML_REGION=<google-location>
 
 ```shell
 acp \
-  --agent claude \
+  --agent claude-acp \
   --provider vertex-ai \
   --model claude-opus-4-6 \
   --prompt "Say Hello"
@@ -82,14 +82,14 @@ acp \
 or use the default model: `claude-opus-4-6` using the provider `vertex-ai`
 ```shell
 acp \
-  --agent claude \
+  --agent claude-acp \
   --provider vertex-ai \
   --prompt "Read the skills/dummy/SKILL.md instructions and say hello at the root of the project."
 ```
 
 ```shell
 acp \
-  --agent claude \
+  --agent claude-acp \
   --provider vertex-ai \
   --prompt "Execute the **java-project-discovery** skill. Inspect the workspace root directory, determine the build setup, target Java version, and framework configurations, and return the structured JSON output."
 ```

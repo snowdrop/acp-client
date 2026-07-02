@@ -48,15 +48,15 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <aesh.version>3.11</aesh.version>
+        <aesh.version>3.16.3</aesh.version>
         <acp-core.version>0.11.0</acp-core.version>
         <jackson-databind.version>2.18.2</jackson-databind.version>
         <jboss-logmanager.version>3.2.2.Final</jboss-logmanager.version>
+        <quarkus.platform.version>3.37.0</quarkus.platform.version>
         <slf4j-jboss-logmanager.version>2.1.0.Final</slf4j-jboss-logmanager.version>
         <slf4j.version>2.0.9</slf4j.version>
 
         <exec-maven-plugin.version>3.6.3</exec-maven-plugin.version>
-        <quarkus.platform.version>3.35.3</quarkus.platform.version>
     </properties>
 
     <dependencyManagement>
