@@ -9,11 +9,11 @@ import io.quarkiverse.agentclientprotocol.sdk.client.AcpSyncClient;
 import io.quarkiverse.agentclientprotocol.sdk.client.transport.AgentParameters;
 import io.quarkiverse.agentclientprotocol.sdk.client.transport.StdioAcpClientTransport;
 import io.quarkiverse.agentclientprotocol.sdk.spec.schema.v1.*;
+import org.aesh.command.CommandDefinition;
 import org.jboss.logging.Logger;
 
 import org.aesh.command.Command;
 import org.aesh.command.CommandResult;
-import org.aesh.command.GroupCommandDefinition;
 import org.aesh.command.invocation.CommandInvocation;
 import org.aesh.command.option.Option;
 
@@ -43,7 +43,7 @@ import java.util.logging.Level;
  * acp --agent-binary my-agent --agent-args "serve" --prompt "Say hello"
  * }</pre>
  */
-@GroupCommandDefinition(
+@CommandDefinition(
         name = "acp",
         description = "acp tool for any acp compatible agent (OpenCode, Claude, Pi, Gemini, etc.)",
         generateHelp = true,

@@ -1,8 +1,8 @@
 package io.quarkiverse.acp.registry;
 
 import org.aesh.command.Command;
+import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
-import org.aesh.command.GroupCommandDefinition;
 import org.aesh.command.invocation.CommandInvocation;
 
 /**
@@ -16,7 +16,7 @@ import org.aesh.command.invocation.CommandInvocation;
  * acp reg remove opencode     # remove an installed agent
  * }</pre>
  */
-@GroupCommandDefinition(
+@CommandDefinition(
         name = "reg",
         description = "Manage ACP agents via the registry (list, install, remove)",
         groupCommands = {ListAgentsCommand.class, InstallCommand.class, RemoveCommand.class}
