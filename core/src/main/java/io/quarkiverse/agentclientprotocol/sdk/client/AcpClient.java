@@ -1,9 +1,9 @@
-package io.quarkiverse.agentclientprotocol.sdk.client;
+package io.smallrye.agentclientprotocol.sdk.client;
 
-import io.quarkiverse.agentclientprotocol.sdk.client.transport.StdioAcpClientTransport;
-import io.quarkiverse.agentclientprotocol.sdk.spec.schema.v1.RequestPermissionRequest;
-import io.quarkiverse.agentclientprotocol.sdk.spec.schema.v1.RequestPermissionResponse;
-import io.quarkiverse.agentclientprotocol.sdk.spec.schema.v1.SessionNotification;
+import io.smallrye.agentclientprotocol.sdk.client.transport.StdioAcpClientTransport;
+import io.smallrye.agentclientprotocol.sdk.spec.schema.v1.RequestPermissionRequest;
+import io.smallrye.agentclientprotocol.sdk.spec.schema.v1.RequestPermissionResponse;
+import io.smallrye.agentclientprotocol.sdk.spec.schema.v1.SessionNotification;
 
 import java.time.Duration;
 import java.util.function.Consumer;

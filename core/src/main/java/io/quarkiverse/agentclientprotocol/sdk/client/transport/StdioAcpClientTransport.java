@@ -1,4 +1,4 @@
-package io.quarkiverse.agentclientprotocol.sdk.client.transport;
+package io.smallrye.agentclientprotocol.sdk.client.transport;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
-import io.quarkiverse.agentclientprotocol.sdk.spec.schema.v1.TextContent;
+import io.smallrye.agentclientprotocol.sdk.spec.schema.v1.TextContent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

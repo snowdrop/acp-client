@@ -1,4 +1,4 @@
-package io.quarkiverse.agentclientprotocol.sdk.client.transport;
+package io.smallrye.agentclientprotocol.sdk.client.transport;
 
 import java.util.ArrayList;
 import java.util.Arrays;

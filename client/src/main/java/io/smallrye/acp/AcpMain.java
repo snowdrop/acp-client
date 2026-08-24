@@ -1,4 +1,4 @@
-package io.quarkiverse.acp;
+package io.smallrye.acp;
 
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.runtime.annotations.QuarkusMain;

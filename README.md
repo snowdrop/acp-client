@@ -62,7 +62,7 @@ jbang acp --prompt "What is 6+6?"
 
 If you plan to use the tool outside of this project, then install it using the maven GAV
 ```shell
-jbang app install --name acp io.quarkiverse.ai:acp-java-client:0.1.0-SNAPSHOT:runner
+jbang app install --name acp io.smallrye.ai:acp-java-client:0.1.0-SNAPSHOT:runner
 
 cd /java/project/to/code/using/ai
 acp --prompt "Say hello"
@@ -245,12 +245,12 @@ Log levels are configured in `client/src/main/resources/application.properties`.
 
 ```shell
 # Enable debug logging
-java -Dquarkus.log.category.\"io.quarkiverse\".level=DEBUG \
+java -Dquarkus.log.category.\"io.smallrye\".level=DEBUG \
   -jar client/target/acp-java-client-0.1.0-SNAPSHOT-runner.jar \
   --prompt "Say Hello"
 
 # Enable trace logging (raw JSON-RPC messages)
-java -Dquarkus.log.category.\"io.quarkiverse\".level=TRACE \
+java -Dquarkus.log.category.\"io.smallrye\".level=TRACE \
   -jar client/target/acp-java-client-0.1.0-SNAPSHOT-runner.jar \
   --prompt "Say Hello"
 ```

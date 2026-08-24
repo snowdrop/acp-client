@@ -1,14 +1,14 @@
-package io.quarkiverse.acp;
+package io.smallrye.acp;
 
-import io.quarkiverse.acp.toolbox.GitUtil;
-import io.quarkiverse.acp.toolbox.ProjectUtil;
-import io.quarkiverse.acp.registry.AcpRegistryManager;
-import io.quarkiverse.acp.registry.RegistryCommand;
-import io.quarkiverse.agentclientprotocol.sdk.client.AcpClient;
-import io.quarkiverse.agentclientprotocol.sdk.client.AcpSyncClient;
-import io.quarkiverse.agentclientprotocol.sdk.client.transport.AgentParameters;
-import io.quarkiverse.agentclientprotocol.sdk.client.transport.StdioAcpClientTransport;
-import io.quarkiverse.agentclientprotocol.sdk.spec.schema.v1.*;
+import io.smallrye.acp.toolbox.GitUtil;
+import io.smallrye.acp.toolbox.ProjectUtil;
+import io.smallrye.acp.registry.AcpRegistryManager;
+import io.smallrye.acp.registry.RegistryCommand;
+import io.smallrye.agentclientprotocol.sdk.client.AcpClient;
+import io.smallrye.agentclientprotocol.sdk.client.AcpSyncClient;
+import io.smallrye.agentclientprotocol.sdk.client.transport.AgentParameters;
+import io.smallrye.agentclientprotocol.sdk.client.transport.StdioAcpClientTransport;
+import io.smallrye.agentclientprotocol.sdk.spec.schema.v1.*;
 import org.aesh.command.CommandDefinition;
 import org.jboss.logging.Logger;
 
@@ -141,9 +141,9 @@ public class AcpCommand implements Command<CommandInvocation> {
         logLevel = ProjectUtil.resolveValueWithPrecedence(logLevel, "ACP_LOG_LEVEL", null);
         if (logLevel != null && !logLevel.isEmpty()) {
             Level level = Level.parse(logLevel.toUpperCase());
-            java.util.logging.Logger.getLogger("io.quarkiverse").setLevel(level);
-            java.util.logging.Logger.getLogger("io.quarkiverse.acp").setLevel(level);
-            java.util.logging.Logger.getLogger("io.quarkiverse.agentclientprotocol").setLevel(level);
+            java.util.logging.Logger.getLogger("io.smallrye").setLevel(level);
+            java.util.logging.Logger.getLogger("io.smallrye.acp").setLevel(level);
+            java.util.logging.Logger.getLogger("io.smallrye.agentclientprotocol").setLevel(level);
             java.util.logging.Logger rootLogger = java.util.logging.Logger.getLogger("");
             if (rootLogger.getLevel().intValue() > level.intValue()) {
                 rootLogger.setLevel(level);

@@ -1,4 +1,4 @@
-package io.quarkiverse.acp.registry;
+package io.smallrye.acp.registry;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;

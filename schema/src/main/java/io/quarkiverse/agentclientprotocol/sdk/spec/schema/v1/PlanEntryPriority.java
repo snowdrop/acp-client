@@ -1,4 +1,4 @@
-package io.quarkiverse.agentclientprotocol.sdk.spec.schema.v1;
+package io.smallrye.agentclientprotocol.sdk.spec.schema.v1;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 

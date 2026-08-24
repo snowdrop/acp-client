@@ -1,4 +1,4 @@
-package io.quarkiverse.acp.toolbox;
+package io.smallrye.acp.toolbox;
 
 import org.jboss.logging.Logger;
 

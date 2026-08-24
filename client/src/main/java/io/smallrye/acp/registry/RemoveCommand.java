@@ -1,4 +1,4 @@
-package io.quarkiverse.acp.registry;
+package io.smallrye.acp.registry;
 
 import org.aesh.command.Command;
 import org.aesh.command.CommandDefinition;

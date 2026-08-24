@@ -86,17 +86,17 @@ By default, generated classes are written to `target/generated-sources` under th
 The existing (reviewed and manually amended) schema classes live in:
 
 ```
-schema/src/main/java/io/quarkiverse/agentclientprotocol/sdk/spec/schema/v1/
+schema/src/main/java/io/smallrye/agentclientprotocol/sdk/spec/schema/v1/
 ```
 
-The package name `io.quarkiverse.agentclientprotocol.sdk.spec.schema.v1` corresponds to the `v1` schema directory. When a `v2` spec is released, classes would be generated into `.schema.v2`.
+The package name `io.smallrye.agentclientprotocol.sdk.spec.schema.v1` corresponds to the `v1` schema directory. When a `v2` spec is released, classes would be generated into `.schema.v2`.
 
 ### How to regenerate
 
 To regenerate the Java classes after updating the schema file, run `JSonSchemaGenerator` from the `schema` module:
 
 ```shell
-mvn compile exec:java -Dexec.mainClass=io.quarkiverse.acp.schema.JSonSchemaGenerator -pl schema
+mvn compile exec:java -Dexec.mainClass=io.smallrye.acp.schema.JSonSchemaGenerator -pl schema
 ```
 
 Generated files will be written to `schema/target/generated-sources/`. Review them and copy into `schema/src/main/java/` when ready.
@@ -104,18 +104,18 @@ Generated files will be written to `schema/target/generated-sources/`. Review th
 To generate directly into the source tree (overwriting existing classes):
 
 ```shell
-mvn compile exec:java -Dexec.mainClass=io.quarkiverse.acp.schema.JSonSchemaGenerator -pl schema \
+mvn compile exec:java -Dexec.mainClass=io.smallrye.acp.schema.JSonSchemaGenerator -pl schema \
     -DoutputDir=src/main/java
 ```
 
-The version segment (e.g. `v1`) is automatically derived from the schema path and appended to the base package. For the default path `/schema/acp/v1/schema.json`, it generates classes in the `io.quarkiverse.agentclientprotocol.sdk.spec.schema.v1` package.
+The version segment (e.g. `v1`) is automatically derived from the schema path and appended to the base package. For the default path `/schema/acp/v1/schema.json`, it generates classes in the `io.smallrye.agentclientprotocol.sdk.spec.schema.v1` package.
 
 ### Generator parameters
 
 | System property  | Description                                                | Default                                                  |
 |------------------|------------------------------------------------------------|----------------------------------------------------------|
 | `-DschemaPath`   | Classpath resource path to the JSON schema                 | `/schema/acp/v1/schema.json`                             |
-| `-DbasePackage`  | Base Java package; version is appended from the schema path| `io.quarkiverse.agentclientprotocol.sdk.spec.schema`     |
+| `-DbasePackage`  | Base Java package; version is appended from the schema path| `io.smallrye.agentclientprotocol.sdk.spec.schema`     |
 | `-DoutputDir`    | Output root directory for generated files                  | `target/generated-sources`                               |
 
 ### What it generates
@@ -134,7 +134,7 @@ The version segment (e.g. `v1`) is automatically derived from the schema path an
 2. Place it under `schema/src/main/resources/schema/acp/<version>/schema.json` (e.g. `v2`)
 3. Regenerate the classes by pointing to the new schema path:
    ```shell
-   mvn compile exec:java -Dexec.mainClass=io.quarkiverse.acp.schema.JSonSchemaGenerator -pl schema \
+   mvn compile exec:java -Dexec.mainClass=io.smallrye.acp.schema.JSonSchemaGenerator -pl schema \
        -DschemaPath=/schema/acp/v2/schema.json
    ```
    This automatically generates classes into `schema/target/generated-sources/` under the `.schema.v2` package.
