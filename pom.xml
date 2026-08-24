@@ -48,11 +48,10 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <aesh.version>3.16.3</aesh.version>
         <acp-core.version>0.11.0</acp-core.version>
         <jackson-databind.version>2.18.2</jackson-databind.version>
         <jboss-logmanager.version>3.2.2.Final</jboss-logmanager.version>
-        <quarkus.platform.version>3.37.1</quarkus.platform.version>
+        <quarkus.platform.version>3.38.3</quarkus.platform.version>
         <slf4j-jboss-logmanager.version>2.1.0.Final</slf4j-jboss-logmanager.version>
         <slf4j.version>2.0.9</slf4j.version>
 
@@ -61,6 +60,15 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Quarkus BOM -->
+            <dependency>
+                <groupId>io.quarkus.platform</groupId>
+                <artifactId>quarkus-bom</artifactId>
+                <version>${quarkus.platform.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <!-- Project modules -->
             <dependency>
                 <groupId>io.quarkiverse.ai</groupId>
